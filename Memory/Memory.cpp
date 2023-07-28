@@ -19,12 +19,8 @@ Memory::Memory(const wchar_t* processName) noexcept {
 		::CloseHandle(snapShot);
 }
 
-Memory::~Memory() {
-	if (processHandle)
-		::CloseHandle(processHandle);
-}
-
-const uintptr_t Memory::GetModuleAddress(const wchar_t* moduleName) const noexcept {
+const std::uintptr_t Memory::GetModuleAddress(const wchar_t* moduleName) const noexcept
+{
 	::MODULEENTRY32 entry = { };
 	entry.dwSize = sizeof(::MODULEENTRY32);
 
@@ -43,4 +39,9 @@ const uintptr_t Memory::GetModuleAddress(const wchar_t* moduleName) const noexce
 		::CloseHandle(snapShot);
 
 	return result;
+}
+
+Memory::~Memory() {
+	if (processHandle)
+		::CloseHandle(processHandle);
 }

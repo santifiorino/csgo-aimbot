@@ -15,7 +15,7 @@ public:
 	bool isProcessOpened() const {
 		return processHandle != nullptr;
 	}
-	
+
 	template <typename T>
 	constexpr const T Read(const std::uintptr_t& address) const noexcept {
 		T value = { };
@@ -29,5 +29,5 @@ public:
 	}
 
 	~Memory();
-	
+
 };

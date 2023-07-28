@@ -16,10 +16,11 @@ public:
 	friend Vector3 operator+(const Vector3& lhs, const Vector3& rhs);
 	friend Vector3 operator-(const Vector3& lhs, const Vector3& rhs);
 	friend Vector3 operator*(const Vector3& vec, const float scalar);
-	friend float dot(const Vector3& lhs, const Vector3& rhs);
 	friend float magnitude(const Vector3& vector);
+	friend float distance(const Vector3& lhs, const Vector3& rhs);
+	friend Vector3 normalize(const Vector3& vector);
 
-	Vector3 toDegrees() const;
-	Vector3 toDirection() const;
+	Vector3 radiansToDegrees() const;
+	Vector3 anglesToDirection() const;
 	bool isZero() const;
 };

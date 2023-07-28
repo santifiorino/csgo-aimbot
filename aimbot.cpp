@@ -7,6 +7,12 @@
 #include <chrono>
 #include <thread>
 
+// For debugging
+std::ostream& operator<<(std::ostream& os, const Vector3& vec) {
+    os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
+    return os;
+}
+
 int main() {
     std::cout << "Aimbot" << std::endl;
     std::cout << "--------------------------------------------------" << std::endl;
@@ -41,14 +47,15 @@ int main() {
             // Coordenadas de los ojos del jugador
             const Vector3 playerEyePosition = memory.Read<Vector3>(player + hazedumper::netvars::m_vecOrigin) +
                 memory.Read<Vector3>(player + hazedumper::netvars::m_vecViewOffset);
+            //std::cout << playerEyePosition << std::endl;
             // Angulos de los ojos del jugador
             const Vector3 playerViewAngles = memory.Read<Vector3>
                 (clientState + hazedumper::signatures::dwClientState_ViewAngles);
-            // Dirección donde apunta el jugador
-            const Vector3 directionVector = playerViewAngles.toDirection();
+
+            const Vector3 playerViewVector = playerViewAngles.anglesToDirection();
 
             // Recorro las entidades para buscar al enemigo más cercano a la mira
-            float minAngle = INFINITY;
+            float minDistance = INFINITY;
             Vector3 anglesToAimAt{ 0, 0, 0 };
             // Dirección base de la lista de entidades
             const unsigned int entityList = client + hazedumper::signatures::dwEntityList;
@@ -80,16 +87,16 @@ int main() {
                         memory.Read<float>(boneMatrix + 0x30 * 8 + 0x2C)
                 };
                 if (!enemyEyePosition.isZero()) {
-                    const Vector3 playerToEnemyVector = enemyEyePosition - playerEyePosition;
+                    const Vector3 playerToEnemyVector = normalize(enemyEyePosition - playerEyePosition);
+                    const float enemyDistance = distance(playerViewVector, playerToEnemyVector);
                     const float enemyXYAngle = atan2(playerToEnemyVector.y, playerToEnemyVector.x);
-                    const float playerXYAngle = atan2(directionVector.y, directionVector.x);
-                    if (abs(enemyXYAngle - playerXYAngle) < minAngle) {
-                        minAngle = abs(enemyXYAngle - playerXYAngle);
+                    if (enemyDistance < minDistance) {
+                        minDistance = enemyDistance;
                         anglesToAimAt = Vector3{
                             asin(playerToEnemyVector.z / magnitude(playerToEnemyVector)),
                             enemyXYAngle,
                             0
-                        }.toDegrees();
+                        }.radiansToDegrees();
                     }
                 }
             }
@@ -102,7 +109,8 @@ int main() {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
         }
-    } else {
+    }
+    else {
         std::cout << "No se encontró el proceso de nombre csgo.exe" << std::endl;
     }
 }
