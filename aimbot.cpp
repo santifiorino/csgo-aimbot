@@ -4,15 +4,6 @@
 
 #include <iostream>
 
-#include <chrono>
-#include <thread>
-
-// For debugging
-std::ostream& operator<<(std::ostream& os, const Vector3& vec) {
-    os << "(" << vec.x << ", " << vec.y << ", " << vec.z << ")";
-    return os;
-}
-
 int main() {
     std::cout << "Aimbot" << std::endl;
     std::cout << "--------------------------------------------------" << std::endl;
@@ -42,69 +33,58 @@ int main() {
             // Dirección base del jugador
             const uintptr_t player = memory.Read<std::uintptr_t>
                 (client + hazedumper::signatures::dwLocalPlayer);
-            // Equipo del jugador
+
             const int32_t playerTeam = memory.Read<std::int32_t>(player + hazedumper::netvars::m_iTeamNum);
-            // Coordenadas de los ojos del jugador
             const Vector3 playerEyePosition = memory.Read<Vector3>(player + hazedumper::netvars::m_vecOrigin) +
                 memory.Read<Vector3>(player + hazedumper::netvars::m_vecViewOffset);
-            //std::cout << playerEyePosition << std::endl;
-            // Angulos de los ojos del jugador
             const Vector3 playerViewAngles = memory.Read<Vector3>
                 (clientState + hazedumper::signatures::dwClientState_ViewAngles);
-
             const Vector3 playerViewVector = playerViewAngles.anglesToDirection();
 
-            // Recorro las entidades para buscar al enemigo más cercano a la mira
-            float minDistance = INFINITY;
-            Vector3 anglesToAimAt{ 0, 0, 0 };
+            
+
             // Dirección base de la lista de entidades
             const unsigned int entityList = client + hazedumper::signatures::dwEntityList;
+            float minDistance = INFINITY;
+            Vector3 anglesToAimAt{ 0, 0, 0 };
             for (int i = 1; i <= 32; i++) {
                 // Dirección base de la entidad
                 const uintptr_t enemy = memory.Read<std::uintptr_t>
                     (client + hazedumper::signatures::dwEntityList + i * 0x10);
-                // Si es de mi equipo lo ignoro
+
                 if (memory.Read<std::int32_t>(enemy + hazedumper::netvars::m_iTeamNum) == playerTeam)
                     continue;
-                /*
-                Si está dormant lo ignoro (dormant=inactivo, pasa cuando están muy lejos o fuera de
-                nuestra vista, en esos casos CSGO lo pone en estado dormant para ahorrarse cosas que
-                mandar por la red y que ande todo mejor, cuando está inactivo no se recive
-                actualizaciones de ese jugador ni se lo renderiza en nuestro cliente.)
-                */
                 if (memory.Read<bool>(enemy + hazedumper::signatures::m_bDormant))
                     continue;
-                // Si está muerto lo ignoro
                 if (memory.Read<std::int32_t>(enemy + hazedumper::netvars::m_lifeState))
                     continue;
-                // Bone matrix del enemigo
+
                 const uintptr_t boneMatrix = memory.Read<std::uintptr_t>
                     (enemy + hazedumper::netvars::m_dwBoneMatrix);
-                // Posición de los ojos del enemigo
                 const Vector3 enemyEyePosition = Vector3{
                         memory.Read<float>(boneMatrix + 0x30 * 8 + 0x0C),
                         memory.Read<float>(boneMatrix + 0x30 * 8 + 0x1C),
                         memory.Read<float>(boneMatrix + 0x30 * 8 + 0x2C)
                 };
+
                 if (!enemyEyePosition.isZero()) {
                     const Vector3 playerToEnemyVector = normalize(enemyEyePosition - playerEyePosition);
                     const float enemyDistance = distance(playerViewVector, playerToEnemyVector);
-                    const float enemyXYAngle = atan2(playerToEnemyVector.y, playerToEnemyVector.x);
                     if (enemyDistance < minDistance) {
                         minDistance = enemyDistance;
                         anglesToAimAt = Vector3{
                             asin(playerToEnemyVector.z / magnitude(playerToEnemyVector)),
-                            enemyXYAngle,
+                            atan2(playerToEnemyVector.y, playerToEnemyVector.x),
                             0
                         }.radiansToDegrees();
                     }
                 }
             }
-            // Si toco click derecho apunta a la cabeza del enemigo
+
             if (GetAsyncKeyState(VK_RBUTTON) && !anglesToAimAt.isZero()) {
                 memory.Write<Vector3>(clientState + hazedumper::signatures::dwClientState_ViewAngles, anglesToAimAt);
             }
-            // Si toco click izquierdo (disparo) espero 100ms para que no cambie instantáneamente a otro enemigo apenas matas a uno
+            
             if (GetAsyncKeyState(VK_LBUTTON)) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
